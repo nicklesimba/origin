@@ -54,11 +54,9 @@ var _ = g.Describe("[sig-network][Feature:Multus-CNI functionality]", func() {
 // Creates a net-attach-def, creates a pod with an annotation that refers to it, and checks for net1 interface.
 func testMultus(f *e2e.Framework, oc *exutil.CLI, ns string) error {
 	// Setup
-	var nodes [2]*kapiv1.Node // not sure if i need multiple nodes? just copying this for
 	var err error
-	podName := "multus-test-pod"
+	// podName := "multus-test-pod"
 
-	nodes[0], nodes[1], err = findAppropriateNodes(f, DIFFERENT_NODE)
 	expectNoError(err)
 
 	g.By("attempting to use multus to create a pod with multiple network interfaces")
@@ -72,29 +70,30 @@ func testMultus(f *e2e.Framework, oc *exutil.CLI, ns string) error {
 		},
 	}
 
-	nadc, err := NewNetAttachDefClient("/tmp/kubeconfig") // need to put the proper path here. I think for me it's just /tmp/kubeconfig
+	err = oc.Run("create").Args("-f", nad).Execute()
+	// nadc, err := NewNetAttachDefClient("/tmp/kubeconfig") // need to put the proper path here. I think for me it's just /tmp/kubeconfig
 	expectNoError(err)
 
-	nadc.create(nad)
+	/*
+		// 2. Then need to make a pod with...
+		// - an annotation: k8s.v1.cni.cncf.io/networks: multus-test-bridge-conf
+		// - command: sleep infinitely (see simple-macvlan.yaml)
+		testPod := launchTestMultusPod(f, podName)
 
-	// 2. Then need to make a pod with...
-	// - an annotation: k8s.v1.cni.cncf.io/networks: multus-test-bridge-conf
-	// - command: sleep infinitely (see simple-macvlan.yaml)
-	testPod := launchTestMultusPod(f, nodes[0].Name, podName) // not sure about the nodes!
+		// 3. Check that the pod is up
+		// this is how andrew did it...
+		_, err = waitForTestMultusPod(f, ns, podName) // not sure if i need "ip" return val
+		expectNoError(err)
 
-	// 3. Check that the pod is up
-	// this is how andrew did it...
-	_, err = waitForTestMultusPod(f, ns, podName) // not sure if i need "ip" return val
-	expectNoError(err)
-
-	// 4. Then need to inspect the pod and verify net1 interface exists.
-	o.Expect(validMultusConfig(testPod, ns)).Should(o.Equal(true))
+		// 4. Then need to inspect the pod and verify net1 interface exists.
+		o.Expect(validMultusConfig(testPod, ns)).Should(o.Equal(true))
+	*/
 	return nil
 }
 
 // this function and other helpers may need to live in test/extended/util later.
 // not sure if arguments are all needed. will clean up later
-func launchTestMultusPod(f *e2e.Framework, nodeName string, podName string) *kapiv1.Pod {
+func launchTestMultusPod(f *e2e.Framework, podName string) *kapiv1.Pod {
 	contName := fmt.Sprintf("%s-container", podName)
 	pod := &kapiv1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -111,7 +110,6 @@ func launchTestMultusPod(f *e2e.Framework, nodeName string, podName string) *kap
 					Command: []string{"/bin/ash", "-c", "trap : TERM INT; sleep infinity & wait"},
 				},
 			},
-			NodeName:      nodeName,
 			RestartPolicy: kapiv1.RestartPolicyNever,
 		},
 	}
